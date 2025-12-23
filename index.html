@@ -3,221 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown to LaTeX & PDF Converter</title>
+    <title>Pro MD Converter | LaTeX & PDF</title>
+    
     <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
+    <!-- Styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
         :root {
             --primary: #2563eb;
-            --secondary: #64748b;
-            --bg: #f1f5f9;
+            --dark: #0f172a;
+            --border: #e2e8f0;
+            --serif: "Latin Modern Roman", "Times New Roman", Times, serif;
         }
 
+        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
             margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            background: #f8fafc;
         }
 
-        /* Toolbar */
-        nav {
-            background: #fff;
-            padding: 1rem 2rem;
+        /* Header & Controls */
+        header {
+            background: var(--dark);
+            color: white;
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            gap: 10px;
+            z-index: 100;
         }
 
-        .btn-group { display: flex; gap: 10px; }
+        .logo { font-weight: 800; font-size: 1.2rem; letter-spacing: -1px; }
+        .logo span { color: #60a5fa; }
 
+        .btn-group { display: flex; gap: 8px; }
         button {
-            padding: 8px 16px;
+            padding: 8px 14px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
+            font-size: 0.85rem;
             font-weight: 600;
-            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: 0.2s;
         }
+        .btn-blue { background: var(--primary); color: white; }
+        .btn-red { background: #ef4444; color: white; }
+        .btn-ghost { background: #334155; color: white; }
+        button:hover { filter: brightness(1.1); }
 
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-secondary { background: var(--secondary); color: white; }
-        .btn-pdf { background: #dc2626; color: white; }
-        button:hover { opacity: 0.9; }
-
-        /* Main Layout */
-        .main-container {
+        /* Main Editor Layout */
+        main {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
+            grid-template-columns: 1fr 1fr 1fr;
             flex: 1;
             min-height: 0;
+            gap: 0;
+        }
+
+        @media (max-width: 1024px) {
+            main { grid-template-columns: 1fr; }
+            .panel { height: 50vh; }
+            .latex-panel { display: none; } /* Hide latex on mobile by default */
         }
 
         .panel {
             display: flex;
             flex-direction: column;
+            border-right: 1px solid var(--border);
             background: white;
-            border-radius: 8px;
             overflow: hidden;
-            border: 1px solid #e2e8f0;
         }
 
-        .panel-header {
-            background: #f8fafc;
-            padding: 10px 15px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            border-bottom: 1px solid #e2e8f0;
+        .panel-label {
+            background: #f1f5f9;
+            padding: 6px 15px;
+            font-size: 0.7rem;
+            font-weight: 800;
             text-transform: uppercase;
             color: #64748b;
+            display: flex;
+            justify-content: space-between;
         }
 
         textarea {
             flex: 1;
-            padding: 20px;
             border: none;
-            resize: none;
-            font-family: 'Fira Code', monospace;
+            padding: 20px;
+            font-family: 'Fira Code', 'Courier New', monospace;
             font-size: 14px;
+            line-height: 1.6;
             outline: none;
+            resize: none;
         }
 
-        #latex-output {
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-
-        /* PDF Styles (The "LaTeX Look") */
-        #pdf-template {
-            display: none; /* Hidden from UI, used for PDF generation */
-        }
-
-        /* This CSS styles the PDF to look like a LaTeX Article */
-        .latex-paper {
-            padding: 2cm;
-            line-height: 1.5;
-            font-family: "Times New Roman", Times, serif;
-            color: black;
+        /* Live Preview Styling */
+        #preview-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
             background: white;
         }
-        .latex-paper h1 { text-align: center; font-size: 2em; margin-bottom: 1em; }
-        .latex-paper h2 { font-size: 1.5em; border-bottom: 0.5pt solid #000; padding-bottom: 3px; }
-        .latex-paper code { background: #eee; padding: 2px 4px; }
-        .latex-paper pre { background: #eee; padding: 10px; }
+
+        /* LaTeX Preview Look */
+        .preview-content {
+            max-width: 800px;
+            margin: 0 auto;
+            color: #1a1a1a;
+            line-height: 1.6;
+            font-family: var(--serif);
+        }
+        .preview-content h1, .preview-content h2, .preview-content h3 { font-family: sans-serif; }
+        .preview-content h1 { text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .preview-content table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        .preview-content th, .preview-content td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .preview-content blockquote { border-left: 4px solid #ddd; padding-left: 15px; color: #666; font-style: italic; }
+        .preview-content img { max-width: 100%; border-radius: 4px; }
+
+        /* Custom Styling Editor */
+        #style-editor {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 200px;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
 
-    <nav>
-        <div style="font-weight: bold; font-size: 1.2rem;">MD <span style="color:var(--primary)">&rarr;</span> LaTeX/PDF</div>
+    <header>
+        <div class="logo">PRO<span>CONVERT</span></div>
         <div class="btn-group">
-            <button class="btn-secondary" onclick="copyLatex()">Copy LaTeX</button>
-            <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+            <button class="btn-ghost" onclick="toggleLatex()">Toggle LaTeX Source</button>
+            <button class="btn-ghost" onclick="toggleStyleEditor()">Custom CSS</button>
+            <button class="btn-blue" onclick="copyLatex()">Copy LaTeX</button>
+            <button class="btn-red" onclick="exportPDF()">Download PDF</button>
         </div>
-    </nav>
+    </header>
 
-    <div class="main-container">
-        <!-- Input -->
+    <main>
+        <!-- 1. Markdown Input -->
         <div class="panel">
-            <div class="panel-header">Markdown Input</div>
-            <textarea id="md-input" oninput="process()" placeholder="# Title
-## Introduction
-Type markdown here...
-- List item
-- **Bold text**"></textarea>
+            <div class="panel-label">Editor (GitHub Flavored)</div>
+            <textarea id="md-input" oninput="updateAll()" placeholder="Start typing Markdown..."></textarea>
         </div>
 
-        <!-- Output -->
+        <!-- 2. Live MD Preview -->
         <div class="panel">
-            <div class="panel-header">LaTeX Code Output</div>
+            <div class="panel-label">Live PDF Preview</div>
+            <div id="preview-area">
+                <div id="rendered-md" class="preview-content"></div>
+            </div>
+        </div>
+
+        <!-- 3. LaTeX Output -->
+        <div class="panel latex-panel" id="latex-view">
+            <div class="panel-label">LaTeX Code</div>
             <textarea id="latex-output" readonly></textarea>
         </div>
+    </main>
+
+    <div id="style-editor">
+        <div class="panel-label">Custom CSS <button onclick="toggleStyleEditor()" style="padding:0; background:none; border:none; color:red; cursor:pointer">X</button></div>
+        <textarea id="custom-css" oninput="updateStyle()" style="font-size: 11px;">/* Example: h1 { color: red; } */</textarea>
     </div>
 
-    <!-- Hidden element for PDF rendering -->
-    <div id="pdf-template" class="latex-paper"></div>
+    <style id="user-styles"></style>
 
     <script>
-        const input = document.getElementById('md-input');
-        const output = document.getElementById('latex-output');
-        const pdfTemplate = document.getElementById('pdf-template');
+        const mdInput = document.getElementById('md-input');
+        const latexOutput = document.getElementById('latex-output');
+        const previewHtml = document.getElementById('rendered-md');
+        const userStyleTag = document.getElementById('user-styles');
 
-        function process() {
-            const md = input.value;
+        // Configure Marked.js
+        marked.setOptions({
+            gfm: true,
+            tables: true,
+            breaks: true,
+            highlight: function(code, lang) {
+                if (Prism.languages[lang]) {
+                    return Prism.highlight(code, Prism.languages[lang], lang);
+                }
+                return code;
+            }
+        });
+
+        function updateAll() {
+            const val = mdInput.value;
             
-            // 1. Generate LaTeX String
-            let latex = convertToLatex(md);
-            output.value = latex;
+            // 1. Update Preview
+            previewHtml.innerHTML = marked.parse(val);
+            Prism.highlightAllUnder(previewHtml);
 
-            // 2. Update PDF Template (HTML conversion)
-            pdfTemplate.innerHTML = marked.parse(md);
+            // 2. Update LaTeX
+            latexOutput.value = convertToLatex(val);
         }
 
         function convertToLatex(md) {
             let tex = md;
 
-            // Escaping basic chars
-            tex = tex.replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/&/g, '\\&');
+            // Escaping Special Chars (simplified for demo)
+            tex = tex.replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/&/g, '\\&').replace(/_/g, '\\_');
 
-            // Headers
+            // Headings
             tex = tex.replace(/^# (.*$)/gm, '\\section{$1}');
             tex = tex.replace(/^## (.*$)/gm, '\\subsection{$1}');
             tex = tex.replace(/^### (.*$)/gm, '\\subsubsection{$1}');
 
-            // Bold / Italic
+            // Bold/Italic
             tex = tex.replace(/\*\*\*(.*?)\*\*\*/g, '\\textit{\\textbf{$1}}');
             tex = tex.replace(/\*\*(.*?)\*\*/g, '\\textbf{$1}');
             tex = tex.replace(/\*(.*?)\*/g, '\\textit{$1}');
 
-            // Code
-            tex = tex.replace(/```([\s\S]*?)```/g, '\\begin{verbatim}\n$1\n\\end{verbatim}');
-            tex = tex.replace(/`(.*?)`/g, '\\texttt{$1}');
-
             // Lists
             tex = tex.replace(/^\s*[\-\*\+] (.*$)/gm, '\\item $1');
-            
-            const preamble = "\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\n\\begin{document}\n\n";
-            const closing = "\n\n\\end{document}";
-            
-            return preamble + tex + closing;
+
+            // Code
+            tex = tex.replace(/```(?:[a-z]*)\n([\s\S]*?)\n```/g, '\\begin{verbatim}\n$1\n\\end{verbatim}');
+            tex = tex.replace(/`(.*?)`/g, '\\texttt{$1}');
+
+            // Tables (Simplified regex for markdown tables)
+            tex = tex.replace(/\|(.+)\|/g, (match) => {
+                return match.replace(/\|/g, '&').replace(/^&|&$/g, '') + '\\\\ \\hline';
+            });
+
+            const preamble = `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{hyperref}\n\n\\begin{document}\n\n`;
+            return preamble + tex + `\n\n\\end{document}`;
         }
 
-        function exportPDF() {
-            if (!input.value.trim()) return alert("Please enter some markdown first.");
-
-            const element = document.getElementById('pdf-template');
-            element.style.display = 'block'; // Temporarily show to capture
-
+        async function exportPDF() {
+            const element = document.getElementById('preview-area');
             const opt = {
-                margin:       1,
+                margin:       [0.5, 0.5],
                 filename:     'document.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
+            
+            // Add a loading state
+            const btn = document.querySelector('.btn-red');
+            btn.innerText = "Generating...";
+            
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } finally {
+                btn.innerText = "Download PDF";
+            }
+        }
 
-            // New Promise-based usage:
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.style.display = 'none'; // Hide again
-            });
+        function toggleLatex() {
+            const lv = document.getElementById('latex-view');
+            lv.style.display = lv.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function toggleStyleEditor() {
+            const se = document.getElementById('style-editor');
+            se.style.display = se.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function updateStyle() {
+            userStyleTag.innerHTML = document.getElementById('custom-css').value;
         }
 
         function copyLatex() {
-            output.select();
+            latexOutput.select();
             document.execCommand('copy');
-            alert("LaTeX code copied to clipboard!");
+            alert("LaTeX source copied!");
         }
 
-        // Initialize with sample text
-        input.value = "# Hello World\n\nThis is a sample document converted to **LaTeX** styling.\n\n## Features\n- Direct PDF Export\n- LaTeX Code Generation\n- Real-time preview";
-        process();
+        // Initialize with feature-rich sample
+        mdInput.value = `# Welcome to ProConvert
+
+This is a **Live Markdown** previewer.
+
+## Table Support
+| Feature | Status |
+| :--- | :--- |
+| Privacy | 100% Client Side |
+| LaTeX | Supported |
+| PDF | Instant |
+
+## Code Highlighting
+\`\`\`javascript
+function helloWorld() {
+  console.log("Hello from Prism.js!");
+}
+\`\`\`
+
+## Images
+![Sample](https://images.unsplash.com/photo-1453928582365-b6ad33cbcf64?w=400&auto=format&fit=crop)
+
+> Everything you type here is instantly available as LaTeX code or a styled PDF document.`;
+
+        updateAll();
     </script>
 </body>
 </html>
