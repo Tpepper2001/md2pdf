@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown to LaTeX & PDF Converter</title>
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --bg: #f1f5f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Toolbar */
+        nav {
+            background: #fff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-group { display: flex; gap: 10px; }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-pdf { background: #dc2626; color: white; }
+        button:hover { opacity: 0.9; }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .panel-header {
+            background: #f8fafc;
+            padding: 10px 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-bottom: 1px solid #e2e8f0;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        textarea {
+            flex: 1;
+            padding: 20px;
+            border: none;
+            resize: none;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #latex-output {
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        /* PDF Styles (The "LaTeX Look") */
+        #pdf-template {
+            display: none; /* Hidden from UI, used for PDF generation */
+        }
+
+        /* This CSS styles the PDF to look like a LaTeX Article */
+        .latex-paper {
+            padding: 2cm;
+            line-height: 1.5;
+            font-family: "Times New Roman", Times, serif;
+            color: black;
+            background: white;
+        }
+        .latex-paper h1 { text-align: center; font-size: 2em; margin-bottom: 1em; }
+        .latex-paper h2 { font-size: 1.5em; border-bottom: 0.5pt solid #000; padding-bottom: 3px; }
+        .latex-paper code { background: #eee; padding: 2px 4px; }
+        .latex-paper pre { background: #eee; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div style="font-weight: bold; font-size: 1.2rem;">MD <span style="color:var(--primary)">&rarr;</span> LaTeX/PDF</div>
+        <div class="btn-group">
+            <button class="btn-secondary" onclick="copyLatex()">Copy LaTeX</button>
+            <button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Input -->
+        <div class="panel">
+            <div class="panel-header">Markdown Input</div>
+            <textarea id="md-input" oninput="process()" placeholder="# Title
+## Introduction
+Type markdown here...
+- List item
+- **Bold text**"></textarea>
+        </div>
+
+        <!-- Output -->
+        <div class="panel">
+            <div class="panel-header">LaTeX Code Output</div>
+            <textarea id="latex-output" readonly></textarea>
+        </div>
+    </div>
+
+    <!-- Hidden element for PDF rendering -->
+    <div id="pdf-template" class="latex-paper"></div>
+
+    <script>
+        const input = document.getElementById('md-input');
+        const output = document.getElementById('latex-output');
+        const pdfTemplate = document.getElementById('pdf-template');
+
+        function process() {
+            const md = input.value;
+            
+            // 1. Generate LaTeX String
+            let latex = convertToLatex(md);
+            output.value = latex;
+
+            // 2. Update PDF Template (HTML conversion)
+            pdfTemplate.innerHTML = marked.parse(md);
+        }
+
+        function convertToLatex(md) {
+            let tex = md;
+
+            // Escaping basic chars
+            tex = tex.replace(/%/g, '\\%').replace(/\$/g, '\\$').replace(/&/g, '\\&');
+
+            // Headers
+            tex = tex.replace(/^# (.*$)/gm, '\\section{$1}');
+            tex = tex.replace(/^## (.*$)/gm, '\\subsection{$1}');
+            tex = tex.replace(/^### (.*$)/gm, '\\subsubsection{$1}');
+
+            // Bold / Italic
+            tex = tex.replace(/\*\*\*(.*?)\*\*\*/g, '\\textit{\\textbf{$1}}');
+            tex = tex.replace(/\*\*(.*?)\*\*/g, '\\textbf{$1}');
+            tex = tex.replace(/\*(.*?)\*/g, '\\textit{$1}');
+
+            // Code
+            tex = tex.replace(/```([\s\S]*?)```/g, '\\begin{verbatim}\n$1\n\\end{verbatim}');
+            tex = tex.replace(/`(.*?)`/g, '\\texttt{$1}');
+
+            // Lists
+            tex = tex.replace(/^\s*[\-\*\+] (.*$)/gm, '\\item $1');
+            
+            const preamble = "\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\n\\begin{document}\n\n";
+            const closing = "\n\n\\end{document}";
+            
+            return preamble + tex + closing;
+        }
+
+        function exportPDF() {
+            if (!input.value.trim()) return alert("Please enter some markdown first.");
+
+            const element = document.getElementById('pdf-template');
+            element.style.display = 'block'; // Temporarily show to capture
+
+            const opt = {
+                margin:       1,
+                filename:     'document.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            // New Promise-based usage:
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.display = 'none'; // Hide again
+            });
+        }
+
+        function copyLatex() {
+            output.select();
+            document.execCommand('copy');
+            alert("LaTeX code copied to clipboard!");
+        }
+
+        // Initialize with sample text
+        input.value = "# Hello World\n\nThis is a sample document converted to **LaTeX** styling.\n\n## Features\n- Direct PDF Export\n- LaTeX Code Generation\n- Real-time preview";
+        process();
+    </script>
+</body>
+</html>
